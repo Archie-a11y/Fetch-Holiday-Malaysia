@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Malaysia Holiday Calendar</title>
+    <style>
+        :root {
+            --primary-blue: #003366; 
+            --white: #ffffff;
+            --holiday-gold: #D4AF37;
+            --bright-gold: #FFD700;
+            --past-black: #1a1a1a;
+            --today-blue: #0056b3;
+            --bg-page: #f8f9fa;
+            --shadow: 0 4px 12px rgba(0,0,0,0.1);
+            --text-muted: #6c757d;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg-page); margin: 0; padding: 15px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Header 响应式优化 */
+        header {
+            background: var(--primary-blue); padding: 12px 20px; border-radius: 30px;
+            box-shadow: var(--shadow); margin-bottom: 20px; color: var(--white);
+            display: flex; justify-content: space-between; align-items: center; gap: 15px;
+        }
+        
+        .header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 1; }
+        header h2 { margin: 0; font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+
+        .header-right { flex-shrink: 0; }
+
+        /* 选择器组容器 */
+        .selector-group { 
+            display: flex; 
+            background: var(--white); 
+            border-radius: 20px; 
+            padding: 2px; 
+            overflow: hidden;
+        }
+        
+        select { 
+            padding: 6px 8px; border: none; font-size: 12px;
+            font-weight: 700; cursor: pointer; background: var(--white); color: var(--primary-blue);
+            outline: none; transition: 0.3s;
+        }
+
+        #region-select { min-width: 120px; border-right: 1px solid #eee; }
+        #lang-select { border-right: 1px solid #eee; }
+        #view-select { border-right: 1px solid #eee; min-width: 80px; }
+        #year-select { min-width: 70px; }
+
+        /* --- 移动端适配关键 CSS --- */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column; 
+                border-radius: 20px;
+                padding: 15px;
+                align-items: stretch;
+                text-align: center;
+            }
+            
+            .header-left { justify-content: center; }
+            header h2 { font-size: 1rem; white-space: normal; }
+
+            .selector-group {
+                display: grid;
+                grid-template-columns: 1fr 1fr; 
+                border-radius: 12px;
+                gap: 1px; 
+                background: #eee; 
+            }
+
+            select {
+                width: 100%;
+                height: 35px;
+                border-radius: 0 !important;
+                border: none !important;
+                text-align: center;
+                padding: 5px;
+            }
+
+            #region-select, #lang-select, #view-select, #year-select {
+                min-width: 0; 
+            }
+
+            /* 表格在移动端转为卡片布局，防止横向溢出 */
+            .table-view { min-width: 100% !important; }
+            .table-view thead { display: none; } /* 隐藏表头 */
+            .table-view, .table-view tbody, .table-view tr, .table-view td {
+                display: block; 
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .table-view tr {
+                margin-bottom: 15px;
+                padding: 15px;
+                border: 1px solid #eee;
+                border-radius: 12px;
+                background: #fff;
+                position: relative;
+            }
+            .table-view td {
+                padding: 5px 0 !important;
+                border: none !important;
+            }
+            .date-cell { margin-bottom: 8px; }
+            .status-tag { position: absolute; top: 15px; right: 15px; }
+            .holiday-name { padding-right: 60px; } /* 避开状态标签 */
+        }
+
+        /* Calendar Grid View */
+        .calendar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .month-card { background: var(--white); border-radius: 15px; padding: 15px; box-shadow: var(--shadow); }
+        .month-title { text-align: center; font-weight: 800; color: var(--primary-blue); margin-bottom: 12px; font-size: 1.1em; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+        .weekday { font-size: 0.7em; color: #aaa; font-weight: bold; padding-bottom: 8px; }
+        
+        .day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 0.9em; border-radius: 8px; margin: 2px; font-weight: 600; position: relative; }
+        .day.today { border: 2px solid var(--today-blue); color: var(--today-blue); background: var(--white); }
+        .day.today.holiday { background-color: var(--holiday-gold) !important; border: 2px solid var(--primary-blue) !important; color: var(--primary-blue) !important; box-sizing: border-box; }
+        .day.holiday { background-color: var(--holiday-gold); color: #000; cursor: pointer; }
+        .day.past { background-color: var(--past-black) !important; color: var(--holiday-gold) !important; }
+        .day.past.holiday { border: 2px solid var(--holiday-gold); box-sizing: border-box; }
+
+        /* Optimized Table View */
+        .table-container { background: transparent; border-radius: 15px; overflow-x: hidden; }
+        .table-view { width: 100%; border-collapse: collapse; min-width: 600px; background: var(--white); }
+        .table-view th { background: var(--primary-blue); color: var(--white); padding: 15px; text-align: left; font-size: 0.8rem; text-transform: uppercase; }
+        .table-view td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+        
+        .past-row { opacity: 0.6; background-color: #fdfdfd; }
+        .today-row { background-color: #eef6ff !important; border-left: 5px solid var(--today-blue); }
+
+        .date-cell { display: flex; align-items: center; gap: 12px; }
+        .date-badge { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #f0f4f8; border-radius: 8px; width: 44px; height: 44px; flex-shrink: 0;
+        }
+        .date-badge .day-num { font-size: 1.1rem; font-weight: 800; color: var(--primary-blue); line-height: 1; }
+        .date-badge .month-name { font-size: 0.6rem; font-weight: bold; text-transform: uppercase; color: #666; }
+
+        .status-tag { padding: 4px 10px; border-radius: 12px; font-size: 0.65rem; font-weight: 800; display: inline-block; }
+        .tag-past { background: #eee; color: #777; }
+        .tag-upcoming { background: #e7f5ff; color: #007bff; }
+        .tag-today { background: #ff4757; color: #fff; }
+
+        .holiday-name { font-size: 1rem; font-weight: 700; color: #222; margin-bottom: 2px; }
+        .state-info { font-size: 0.75rem; color: var(--text-muted); display: block; }
+
+        /* Tooltip */
+        #custom-tooltip {
+            position: absolute; display: none; padding: 8px 14px; border-radius: 6px; font-size: 0.82em;
+            pointer-events: none; z-index: 1000; text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); transform: translate(-50%, -130%);
+            white-space: pre-wrap; max-width: 200px; font-weight: bold;
+        }
+        #custom-tooltip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border: 5px solid transparent; }
+        .tip-normal { background: #000; color: var(--bright-gold); border: 2px solid var(--holiday-gold); }
+        .tip-normal::after { border-top-color: #000; }
+        .tip-today { background: #fff !important; color: var(--today-blue) !important; border: 2px solid var(--today-blue) !important; }
+        .tip-today::after { border-top-color: var(--today-blue); }
+        .tip-today-holiday { background: #fff !important; color: #000 !important; border: 2px solid #000 !important; }
+        .tip-today-holiday::after { border-top-color: #000; }
+
+        footer { margin-top: 25px; padding: 15px; background: var(--primary-blue); color: var(--white); border-radius: 50px; text-align: center; font-size: 0.8rem; font-weight: 600; }
+        .loader { display: none; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid var(--bright-gold); border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-left">
+            <h2 id="ui-title">Malaysia Holidays</h2>
+            <div id="loader" class="loader"></div>
+        </div>
+        <div class="header-right">
+            <div class="selector-group">
+                <select id="region-select"></select>
+                <select id="lang-select">
+                    <option value="en">English</option>
+                    <option value="zh">中文</option>
+                    <option value="ms">Bahasa Melayu</option>
+                </select>
+                <select id="view-select"></select>
+                <select id="year-select"></select>
+            </div>
+        </div>
+    </header>
+
+    <div id="main-content"></div>
+    <div id="custom-tooltip"></div>
+    <footer id="footer-stats"></footer>
+</div>
+
+<script>
+    // 切换至不需要代理、原生支持跨域的高质量马来西亚假期 API 数据源
+    const API_BASE_URL = "https://mycal-api.huijun00100101.workers.dev/v1/holidays";
+
+    const regions = {
+        "": { en: "Malaysia (National)", zh: "马来西亚 (全国)", ms: "Malaysia (Nasional)" },
+        "johor": { en: "Johor", zh: "柔佛", ms: "Johor" },
+        "kedah": { en: "Kedah", zh: "吉打", ms: "Kedah" },
+        "kelantan": { en: "Kelantan", zh: "吉兰丹", ms: "Kelantan" },
+        "kuala-lumpur": { en: "Kuala Lumpur", zh: "吉隆坡", ms: "Kuala Lumpur" },
+        "labuan": { en: "Labuan", zh: "纳闽", ms: "Labuan" },
+        "melaka": { en: "Melaka", zh: "马六甲", ms: "Melaka" },
+        "negeri-sembilan": { en: "Negeri Sembilan", zh: "森美兰", ms: "Negeri Sembilan" },
+        "pahang": { en: "Pahang", zh: "彭亨", ms: "Pahang" },
+        "penang": { en: "Penang", zh: "槟城", ms: "Pulau Pinang" },
+        "perak": { en: "Perak", zh: "霹雳", ms: "Perak" },
+        "perlis": { en: "Perlis", zh: "玻璃市", ms: "Perlis" },
+        "putrajaya": { en: "Putrajaya", zh: "布城", ms: "Putrajaya" },
+        "sabah": { en: "Sabah", zh: "沙巴", ms: "Sabah" },
+        "sarawak": { en: "Sarawak", zh: "砂拉越", ms: "Sarawak" },
+        "selangor": { en: "Selangor", zh: "雪兰莪", ms: "Selangor" },
+        "terengganu": { en: "Terengganu", zh: "登嘉楼", ms: "Terengganu" }
+    };
+
+    const i18n = {
+        en: { 
+            months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], 
+            fullMonths: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+            weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], 
+            stats: "Holidays: {h} / Year: {t}", today: "Today", suffix: "Holidays",
+            tableCols: ["Date", "Holiday Details", "Status"],
+            status: { past: "Passed", upcoming: "Upcoming", today: "Today" },
+            views: { calendar: "Calendar", table: "Table" },
+            national_scope: "National"
+        },
+        zh: { 
+            months: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"], 
+            fullMonths: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"], 
+            weekdays: ["日", "一", "二", "三", "四", "五", "六"], 
+            stats: "假期: {h} 天 / 全年: {t} 天", today: "今天", suffix: "公共假期",
+            tableCols: ["日期", "假期详情", "状态"],
+            status: { past: "已过去", upcoming: "即将到来", today: "今天" },
+            views: { calendar: "日历", table: "表格" },
+            national_scope: "全国"
+        },
+        ms: { 
+            months: ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"], 
+            fullMonths: ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"],
+            weekdays: ["Ahad", "Isn", "Sel", "Rab", "Kha", "Jum", "Sab"], 
+            stats: "Cuti: {h} / Jumlah: {t}", today: "Hari Ini", suffix: "Cuti Umum",
+            tableCols: ["Tarikh", "Butiran Cuti", "Status"],
+            status: { past: "Telah Berlalu", upcoming: "Akan Datang", today: "Hari Ini" },
+            views: { calendar: "Kalendar", table: "Jadual" },
+            national_scope: "Nasional"
+        }
+    };
+
+    let currentYear = new Date().getFullYear();
+    let currentLang = 'en';
+    let currentRegion = ''; 
+    let currentView = 'calendar';
+    let holidayMap = {}; 
+
+    function updateRegionSelect() {
+        const select = document.getElementById('region-select');
+        const lastVal = currentRegion;
+        select.innerHTML = '';
+        Object.keys(regions).forEach(key => {
+            const opt = new Option(regions[key][currentLang], key);
+            if (key === lastVal) opt.selected = true;
+            select.add(opt);
+        });
+    }
+
+    function updateViewSelect() {
+        const select = document.getElementById('view-select');
+        const lastVal = currentView;
+        select.innerHTML = '';
+        const views = i18n[currentLang].views;
+        [['calendar', views.calendar], ['table', views.table]].forEach(([val, text]) => {
+            const opt = new Option(text, val);
+            if (val === lastVal) opt.selected = true;
+            select.add(opt);
+        });
+    }
+
+    // 智能、快速且不依赖外部网络状态的年份注入
+    function populateYears() {
+        const select = document.getElementById('year-select');
+        const systemYear = new Date().getFullYear();
+        const lastSelected = select.value || systemYear.toString();
+        select.innerHTML = '';
+        const targetYears = [systemYear - 1, systemYear, systemYear + 1, systemYear + 2];
+        targetYears.forEach(y => {
+            select.add(new Option(y, y));
+        });
+        select.value = targetYears.includes(parseInt(lastSelected)) ? lastSelected : systemYear.toString();
+        currentYear = parseInt(select.value);
+    }
+
+    // 抓取并组装假期数据（支持大小写及多重覆盖合并逻辑）
+    async function fetchHolidays() {
+        toggleLoader(true);
+        holidayMap = {};
+        
+        // 当选择“Malaysia (National)”时，不带 state 参数，拉取全部假期
+        const stateQuery = currentRegion ? `&state=${currentRegion}` : "";
+        const targetUrl = `${API_BASE_URL}?year=${currentYear}${stateQuery}`;
+        
+        try {
+            const resp = await fetch(targetUrl);
+            const json = await resp.json();
+            const list = Array.isArray(json) ? json : (json.data && Array.isArray(json.data) ? json.data : []);
+            
+            list.forEach(item => {
+                const dateKey = item.date; // 标准 ISO 日期 "YYYY-MM-DD"
+                if (!dateKey) return;
+                
+                // 获取多语假名称，防空回退
+                const nameObj = item.name || {};
+                const name = nameObj[currentLang] || nameObj['en'] || nameObj['ms'] || nameObj['zh'] || "Holiday";
+                
+                // 处理节假日的州属覆盖信息
+                let statesText = "";
+                if (Array.isArray(item.states) && item.states.length > 0) {
+                    statesText = item.states.map(s => regions[s] ? regions[s][currentLang] : s).join(', ');
+                } else {
+                    statesText = i18n[currentLang].national_scope;
+                }
+                
+                if (!holidayMap[dateKey]) {
+                    holidayMap[dateKey] = [];
+                }
+                holidayMap[dateKey].push({ name, states: statesText });
+            });
+            render();
+        } catch (e) { 
+            console.error(e); 
+            render(true); 
+        }
+        toggleLoader(false);
+    }
+
+    function render(isFail) {
+        const container = document.getElementById('main-content');
+        container.innerHTML = '';
+        const lang = i18n[currentLang];
+        const now = new Date();
+        const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+        if (currentView === 'calendar') {
+            const gridWrapper = document.createElement('div');
+            gridWrapper.className = 'calendar-grid';
+            for (let m = 0; m < 12; m++) {
+                const card = document.createElement('div');
+                card.className = 'month-card';
+                card.innerHTML = `<div class="month-title">${lang.fullMonths[m]}</div>`;
+                const grid = document.createElement('div');
+                grid.className = 'days-grid';
+                lang.weekdays.forEach(wd => grid.innerHTML += `<div class="weekday">${wd}</div>`);
+                const firstDay = new Date(currentYear, m, 1).getDay();
+                for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+                const daysInMonth = new Date(currentYear, m + 1, 0).getDate();
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateKey = `${currentYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'day';
+                    dayDiv.textContent = d;
+                    if (dateKey === todayKey) dayDiv.classList.add('today');
+                    if (new Date(currentYear, m, d) < todayDate) dayDiv.classList.add('past');
+                    
+                    if (holidayMap[dateKey]) {
+                        dayDiv.classList.add('holiday');
+                        const combinedNames = holidayMap[dateKey].map(h => h.name).join(' / ');
+                        const combinedStates = holidayMap[dateKey].map(h => h.states).join('; ');
+                        dayDiv.setAttribute('data-name', combinedNames);
+                        dayDiv.setAttribute('data-states', combinedStates);
+                    }
+                    grid.appendChild(dayDiv);
+                }
+                card.appendChild(grid);
+                gridWrapper.appendChild(card);
+            }
+            container.appendChild(gridWrapper);
+        } else {
+            const wrap = document.createElement('div');
+            wrap.className = 'table-container';
+            let tbody = "";
+            Object.keys(holidayMap).sort().forEach(dateKey => {
+                const [y, m, d] = dateKey.split('-').map(Number);
+                const dateObj = new Date(y, m - 1, d);
+                const isPast = dateObj < todayDate;
+                const isToday = dateKey === todayKey;
+                
+                let statusHtml = isToday ? `<span class="status-tag tag-today">${lang.status.today}</span>` : (isPast ? `<span class="status-tag tag-past">${lang.status.past}</span>` : `<span class="status-tag tag-upcoming">${lang.status.upcoming}</span>`);
+
+                holidayMap[dateKey].forEach(holiday => {
+                    tbody += `<tr class="${isToday ? 'today-row' : ''} ${isPast ? 'past-row' : ''}">
+                        <td><div class="date-cell"><div class="date-badge"><span class="day-num">${d}</span><span class="month-name">${lang.months[m-1]}</span></div><div style="font-size:0.8rem; opacity:0.7;">${lang.weekdays[dateObj.getDay()]}</div></div></td>
+                        <td><div class="holiday-name">${holiday.name}</div><small class="state-info">${holiday.states}</small></td>
+                        <td>${statusHtml}</td>
+                    </tr>`;
+                });
+            });
+            wrap.innerHTML = `<table class="table-view"><thead><tr>${lang.tableCols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody></table>`;
+            container.appendChild(wrap);
+        }
+        
+        let totalHolidays = 0;
+        Object.keys(holidayMap).forEach(k => {
+            totalHolidays += holidayMap[k].length;
+        });
+
+        document.getElementById('ui-title').innerText = `${regions[currentRegion][currentLang]} ${lang.suffix} ${currentYear}`;
+        document.getElementById('footer-stats').innerText = isFail ? "Error" : lang.stats.replace('{h}', totalHolidays).replace('{t}', (currentYear % 4 === 0 && (currentYear % 100 !== 0 || currentYear % 400 === 0)) ? 366 : 365);
+        initTooltip();
+    }
+
+    function initTooltip() {
+        const tooltip = document.getElementById('custom-tooltip');
+        document.querySelectorAll('.day').forEach(day => {
+            const name = day.getAttribute('data-name');
+            const states = day.getAttribute('data-states');
+            const isToday = day.classList.contains('today');
+            const isHoliday = day.classList.contains('holiday');
+            if (!name && !isToday) return;
+
+            day.onmouseenter = (e) => {
+                tooltip.className = '';
+                let content = isHoliday ? `${name}\n<span style="font-size:0.8em; font-weight:normal; opacity:0.8;">${states}</span>` : i18n[currentLang].today;
+                if (isToday && isHoliday) tooltip.classList.add('tip-today-holiday');
+                else if (isToday) tooltip.classList.add('tip-today');
+                else tooltip.classList.add('tip-normal');
+                tooltip.innerHTML = content;
+                tooltip.style.display = 'block';
+                const rect = day.getBoundingClientRect();
+                tooltip.style.left = (rect.left + rect.width / 2 + window.scrollX) + 'px';
+                tooltip.style.top = (rect.top + window.scrollY) + 'px';
+            };
+            day.onmouseleave = () => tooltip.style.display = 'none';
+        });
+    }
+
+    function toggleLoader(s) { document.getElementById('loader').style.display = s ? 'block' : 'none'; }
+    document.getElementById('region-select').onchange = async (e) => { currentRegion = e.target.value; await fetchHolidays(); };
+    document.getElementById('lang-select').onchange = async (e) => { currentLang = e.target.value; updateRegionSelect(); updateViewSelect(); await fetchHolidays(); };
+    document.getElementById('view-select').onchange = (e) => { currentView = e.target.value; render(); };
+    document.getElementById('year-select').onchange = async (e) => { currentYear = parseInt(e.target.value); await fetchHolidays(); };
+    
+    window.onload = async () => { 
+        updateRegionSelect(); 
+        updateViewSelect(); 
+        populateYears(); 
+        await fetchHolidays(); 
+    };
+</script>
+</body>
+</html>
